@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import my.custom.transformer.handler.ModelHandler;
 import my.custom.transformer.handler.StreamWriter;
 import my.custom.transformer.model.BaseModel;
+import org.apache.commons.collections4.ListUtils;
 import org.springframework.integration.annotation.MessageEndpoint;
 import org.springframework.integration.annotation.Transformer;
 import org.springframework.integration.transformer.MessageTransformationException;
@@ -44,11 +45,9 @@ public class TweetTransformer {
 	@Transformer(inputChannel = "input", outputChannel = "output")
 	public List<BaseModel> transform(String payload) {
 		try {
-			return writer.flush(
-					modelHandler.process(
-							mapper.readValue(payload, new TypeReference<Map<String, Object>>() {})
-					)
-			);
+			List<BaseModel> models = modelHandler.process(mapper.readValue(payload, new TypeReference<Map<String, Object>>() {}));
+			ListUtils.partition(models, 1000).stream().forEach(e -> writer.flush(e));
+			return models;
 		}
 		catch (IOException e) {
 			throw new MessageTransformationException("Unable to transform tweet: " + e.getMessage(), e);
